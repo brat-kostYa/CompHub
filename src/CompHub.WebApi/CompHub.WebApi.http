@@ -1,0 +1,144 @@
+@host = http://localhost:5185
+@token = YOUR_JWT_TOKEN_HERE
+
+# =============== Auth ===============
+
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Oleksii",
+  "lastName": "Kovalenko",
+  "email": "oleksii@comphub.ua",
+  "password": "Password1!",
+  "phoneNumber": "+380671112233"
+}
+
+###
+
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "oleksii@comphub.ua",
+  "password": "Password1!"
+}
+
+###
+
+# =============== Brands ===============
+
+GET {{host}}/api/brands
+
+###
+
+# =============== Categories ===============
+
+GET {{host}}/api/categories
+
+###
+
+GET {{host}}/api/categories/1/spec-keys
+
+###
+
+# =============== Products ===============
+
+GET {{host}}/api/products
+
+###
+
+GET {{host}}/api/products?categoryId=1&brandIds=1&brandIds=2&minPrice=200&maxPrice=600&sortBy=price_asc&page=1&pageSize=10
+
+###
+
+GET {{host}}/api/products/1
+
+###
+
+POST {{host}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Intel Core i5-14600K",
+  "description": "Best price-to-performance Intel CPU.",
+  "price": 299.99,
+  "stockQuantity": 90,
+  "imageUrl": "/images/products/i5-14600k.jpg",
+  "categoryId": 1,
+  "brandId": 1,
+  "specifications": [
+    { "specificationKeyId": 1, "value": "LGA1700" },
+    { "specificationKeyId": 2, "value": "14" }
+  ]
+}
+
+###
+
+PUT {{host}}/api/products/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Intel Core i5-14600K",
+  "description": "Updated description.",
+  "price": 289.99,
+  "stockQuantity": 85,
+  "isActive": true,
+  "imageUrl": "/images/products/i5-14600k.jpg",
+  "categoryId": 1,
+  "brandId": 1,
+  "specifications": [
+    { "specificationKeyId": 1, "value": "LGA1700" }
+  ]
+}
+
+###
+
+DELETE {{host}}/api/products/1
+Authorization: Bearer {{token}}
+
+###
+
+# =============== Reviews ===============
+
+GET {{host}}/api/products/6/reviews
+
+###
+
+POST {{host}}/api/products/6/reviews
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "rating": 5,
+  "comment": "Відмінний процесор!"
+}
+
+###
+
+# =============== Orders ===============
+
+GET {{host}}/api/orders
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/api/orders/1
+Authorization: Bearer {{token}}
+
+###
+
+POST {{host}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "shippingAddress": "вул. Хрещатик 1",
+  "shippingCity": "Київ",
+  "items": [
+    { "productId": 6, "quantity": 1 },
+    { "productId": 11, "quantity": 2 }
+  ]
+}
