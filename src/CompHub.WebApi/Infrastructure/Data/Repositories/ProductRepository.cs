@@ -28,7 +28,9 @@ namespace CompHub.WebApi.Infrastructure.Data.Repositories
                 .AsQueryable();
 
             if (filter.CategoryId.HasValue)
-                query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
+                query = query.Where(p =>
+                    p.CategoryId == filter.CategoryId.Value ||
+                    p.Category.ParentCategoryId == filter.CategoryId.Value);
 
             if (filter.BrandIds is { Count: > 0 })
                 query = query.Where(p => filter.BrandIds.Contains(p.BrandId));

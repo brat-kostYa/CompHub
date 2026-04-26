@@ -13,6 +13,7 @@
         string CategoryName,
         int BrandId,
         string BrandName,
+        string? BrandLogoUrl,
         List<SpecificationDto> Specifications,
         double? AverageRating,
         int ReviewCount

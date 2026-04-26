@@ -149,6 +149,7 @@ namespace CompHub.WebApi.Application.Services
             CategoryName: p.Category.Name,
             BrandId: p.BrandId,
             BrandName: p.Brand.Name,
+            BrandLogoUrl: p.Brand.LogoUrl, 
             Specifications: p.Specifications
                 .OrderBy(s => s.SpecificationKey.DisplayOrder)
                 .Select(s => new SpecificationDto(

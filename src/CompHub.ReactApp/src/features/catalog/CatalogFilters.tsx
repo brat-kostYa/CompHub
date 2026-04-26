@@ -1,14 +1,111 @@
 import { Accordion, Badge, Button, Form, Spinner } from 'react-bootstrap';
 import { BsCheck2, BsSearch } from 'react-icons/bs';
 import { useGetBrandsQuery } from './brandsApi';
-import { useGetCategoryBrandsQuery } from './categoriesApi';
+import { useGetCategoryBrandsQuery, useGetCategorySpecFiltersQuery } from './categoriesApi';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useEffect, useState } from 'react';
 import type { ProductFilterParams } from '../../types/product';
 
+// =============== Constants ===============
+
+const PRICE_MIN = 0;
+const PRICE_MAX = 100000;
+const PRICE_STEP = 500;
+
+// =============== Price range slider ===============
+
+interface PriceRangeSliderProps {
+    minPrice?: number;
+    maxPrice?: number;
+    onChange: (min: number | undefined, max: number | undefined) => void;
+}
+
+const PriceRangeSlider = ({ minPrice, maxPrice, onChange }: PriceRangeSliderProps) => {
+    const [localMin, setLocalMin] = useState(minPrice ?? PRICE_MIN);
+    const [localMax, setLocalMax] = useState(maxPrice ?? PRICE_MAX);
+
+    const debouncedMin = useDebounce(localMin, 400);
+    const debouncedMax = useDebounce(localMax, 400);
+
+    // Sync when external reset (both become undefined)
+    useEffect(() => {
+        if (minPrice === undefined && maxPrice === undefined) {
+            setLocalMin(PRICE_MIN);
+            setLocalMax(PRICE_MAX);
+        }
+    }, [minPrice, maxPrice]);
+
+    useEffect(() => {
+        const val = debouncedMin === PRICE_MIN ? undefined : debouncedMin;
+        if (val !== minPrice) onChange(val, maxPrice);
+    }, [debouncedMin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        const val = debouncedMax === PRICE_MAX ? undefined : debouncedMax;
+        if (val !== maxPrice) onChange(minPrice, val);
+    }, [debouncedMax]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+        const val = Math.min(Number(e.target.value), localMax - PRICE_STEP);
+        setLocalMin(val);
+    };
+
+    const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+        const val = Math.max(Number(e.target.value), localMin + PRICE_STEP);
+        setLocalMax(val);
+    };
+
+    const minPercent = ((localMin - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+    const maxPercent = ((localMax - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+
+    return (
+        <div>
+            <div className="price-slider-wrapper">
+                <div className="price-slider-track">
+                    <div
+                        className="price-slider-range"
+                        style={{ left: `${minPercent}%`, right: `${100 - maxPercent}%` }}
+                    />
+                </div>
+                <input
+                    type="range"
+                    className="price-slider-thumb"
+                    min={PRICE_MIN}
+                    max={PRICE_MAX}
+                    step={PRICE_STEP}
+                    value={localMin}
+                    onChange={handleMinChange}
+                />
+                <input
+                    type="range"
+                    className="price-slider-thumb"
+                    min={PRICE_MIN}
+                    max={PRICE_MAX}
+                    step={PRICE_STEP}
+                    value={localMax}
+                    onChange={handleMaxChange}
+                />
+            </div>
+            <div className="d-flex justify-content-between mt-2">
+                <span className="price-slider-label">
+                    {localMin === PRICE_MIN ? 'Від' : `${localMin.toLocaleString('uk-UA')} ₴`}
+                </span>
+                <span className="price-slider-label">
+                    {localMax === PRICE_MAX ? 'До' : `${localMax.toLocaleString('uk-UA')} ₴`}
+                </span>
+            </div>
+        </div>
+    );
+};
+
+// =============== Main component ===============
+
 interface Props {
     filter: ProductFilterParams;
-    onChange: (updates: Partial<ProductFilterParams> & { brandIds?: number[] }) => void;
+    onChange: (updates: Partial<ProductFilterParams> & {
+        brandIds?: number[];
+        specifications?: Record<number, string[]>;
+    }) => void;
     onReset: () => void;
 }
 
@@ -18,26 +115,15 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
         filter.categoryId!,
         { skip: !filter.categoryId }
     );
+    const { data: specFilters = [] } = useGetCategorySpecFiltersQuery(
+        filter.categoryId!,
+        { skip: !filter.categoryId }
+    );
 
     const brands = filter.categoryId ? (categoryBrands ?? []) : allBrands;
     const brandLoading = filter.categoryId ? categoryBrandsLoading : allBrandsLoading;
 
-    const [minInput, setMinInput] = useState(filter.minPrice?.toString() ?? '');
-    const [maxInput, setMaxInput] = useState(filter.maxPrice?.toString() ?? '');
     const [brandSearch, setBrandSearch] = useState('');
-
-    const debouncedMin = useDebounce(minInput, 500);
-    const debouncedMax = useDebounce(maxInput, 500);
-
-    useEffect(() => {
-        const val = debouncedMin === '' ? undefined : Number(debouncedMin);
-        if (val !== filter.minPrice) onChange({ minPrice: val });
-    }, [debouncedMin]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        const val = debouncedMax === '' ? undefined : Number(debouncedMax);
-        if (val !== filter.maxPrice) onChange({ maxPrice: val });
-    }, [debouncedMax]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Скинути бренд-фільтр якщо вибраний бренд недоступний у новій категорії
     useEffect(() => {
@@ -56,7 +142,7 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
             : [...current, brandId];
         onChange({ brandIds: next.length > 0 ? next : undefined });
     };
-    
+
     const handleSpecToggle = (keyId: number, value: string): void => {
         const current = filter.specifications ?? {};
         const existing = current[keyId] ?? [];
@@ -82,12 +168,7 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
     );
 
     const activeBrandCount = filter.brandIds?.length ?? 0;
-    const priceLabel =
-        minInput || maxInput
-            ? `${minInput ? Number(minInput).toLocaleString('uk-UA') + ' ₴' : ''
-            }${minInput && maxInput ? ' — ' : ''
-            }${maxInput ? Number(maxInput).toLocaleString('uk-UA') + ' ₴' : ''}`
-            : null;
+    const activeSpecCount = Object.values(filter.specifications ?? {}).flat().length;
 
     return (
         <div className="catalog-filters">
@@ -98,7 +179,8 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
                 </Button>
             </div>
 
-            <Accordion defaultActiveKey={['0', '1']} alwaysOpen flush>
+            <Accordion defaultActiveKey={['0', '1', '2']} alwaysOpen flush>
+
                 {/* Бренд */}
                 <Accordion.Item eventKey="0">
                     <Accordion.Header>
@@ -111,7 +193,11 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
                         {brandLoading ? (
                             <Spinner size="sm" animation="border" />
                         ) : brands.length === 0 ? (
-                            <small className="text-muted">Немає брендів для цієї категорії</small>
+                            <small className="text-muted">
+                                {filter.categoryId
+                                    ? 'Немає брендів для цієї категорії'
+                                    : 'Оберіть категорію для фільтрації брендів'}
+                            </small>
                         ) : (
                             <>
                                 {brands.length > 6 && (
@@ -151,24 +237,13 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
 
                 {/* Ціна */}
                 <Accordion.Item eventKey="1">
-                    <Accordion.Header>
-                        <span className="d-flex flex-column w-100 me-2">
-                            <span>Ціна</span>
-                            {priceLabel && (
-                                <small className="text-primary fw-normal" style={{ fontSize: '0.75rem' }}>
-                                    {priceLabel}
-                                </small>
-                            )}
-                        </span>
-                    </Accordion.Header>
-                    <Accordion.Body className="px-0 pt-2">
-                        <div className="d-flex align-items-center gap-2">
-                            <Form.Control type="number" placeholder="Від, ₴" size="sm" min={0}
-                                value={minInput} onChange={(e) => setMinInput(e.target.value)} />
-                            <span className="text-muted flex-shrink-0">—</span>
-                            <Form.Control type="number" placeholder="До, ₴" size="sm" min={0}
-                                value={maxInput} onChange={(e) => setMaxInput(e.target.value)} />
-                        </div>
+                    <Accordion.Header>Ціна</Accordion.Header>
+                    <Accordion.Body className="px-0 pt-2 pb-1">
+                        <PriceRangeSlider
+                            minPrice={filter.minPrice}
+                            maxPrice={filter.maxPrice}
+                            onChange={(min, max) => onChange({ minPrice: min, maxPrice: max })}
+                        />
                     </Accordion.Body>
                 </Accordion.Item>
 
@@ -185,7 +260,54 @@ const CatalogFilters = ({ filter, onChange, onReset }: Props) => {
                         </div>
                     </Accordion.Body>
                 </Accordion.Item>
+
+                {/* Характеристики — тільки якщо обрана категорія */}
+                {filter.categoryId && specFilters.length > 0 && (
+                    <>
+                        {specFilters.map((sf, idx) => {
+                            const activeValues = filter.specifications?.[sf.keyId] ?? [];
+                            return (
+                                <Accordion.Item key={sf.keyId} eventKey={`spec-${idx + 3}`}>
+                                    <Accordion.Header>
+                                        <span className="d-flex align-items-center gap-2 w-100 me-2">
+                                            {sf.name}{sf.unit ? `, ${sf.unit}` : ''}
+                                            {activeValues.length > 0 && (
+                                                <Badge bg="primary" pill>{activeValues.length}</Badge>
+                                            )}
+                                        </span>
+                                    </Accordion.Header>
+                                    <Accordion.Body className="px-0 pt-1">
+                                        <div className="filter-brand-list">
+                                            {sf.values.map((val) => {
+                                                const checked = activeValues.includes(val);
+                                                return (
+                                                    <div
+                                                        key={val}
+                                                        className={`filter-brand-item ${checked ? 'active' : ''}`}
+                                                        onClick={() => handleSpecToggle(sf.keyId, val)}
+                                                    >
+                                                        <span className={`filter-checkbox ${checked ? 'checked' : ''}`}>
+                                                            {checked && <BsCheck2 size={11} />}
+                                                        </span>
+                                                        {val}{sf.unit ? ` ${sf.unit}` : ''}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </Accordion.Body>
+                                </Accordion.Item>
+                            );
+                        })}
+                    </>
+                )}
             </Accordion>
+
+            {/* Підказка якщо немає категорії */}
+            {!filter.categoryId && activeSpecCount === 0 && (
+                <p className="text-muted small mt-3 mb-0 fst-italic">
+                    Оберіть категорію у каталозі для фільтрації за характеристиками
+                </p>
+            )}
         </div>
     );
 };

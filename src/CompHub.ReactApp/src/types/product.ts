@@ -1,5 +1,3 @@
-//TODO: Розібратися як передавати характеристики товарів у фільтрах, бо зараз вони не передаються
-
 export interface ProductListItem {
     id: number;
     name: string;
@@ -25,6 +23,7 @@ export interface ProductDetail extends ProductListItem {
     createdAt: string;
     categoryId: number;
     brandId: number;
+    brandLogoUrl?: string;
     specifications: Specification[];
 }
 

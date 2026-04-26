@@ -16,7 +16,7 @@ interface Props {
     onReset: () => void;
 }
 
-const ActiveFilters = ({ filter, brands, categories, onChange, onReset }: Props) => {
+const ActiveFilters = ({ filter, brands, categories, specFilters = [], onChange, onReset }: Props) => {
     const chips: { label: string; onRemove: () => void }[] = [];
 
     // Category chip
@@ -48,13 +48,13 @@ const ActiveFilters = ({ filter, brands, categories, onChange, onReset }: Props)
     // Price chips
     if (filter.minPrice !== undefined) {
         chips.push({
-            label: `Від $${filter.minPrice}`,
+            label: `Від ${filter.minPrice.toLocaleString('uk-UA')} ₴`,
             onRemove: () => onChange({ minPrice: undefined }),
         });
     }
     if (filter.maxPrice !== undefined) {
         chips.push({
-            label: `До $${filter.maxPrice}`,
+            label: `До ${filter.maxPrice.toLocaleString('uk-UA')} ₴`,
             onRemove: () => onChange({ maxPrice: undefined }),
         });
     }

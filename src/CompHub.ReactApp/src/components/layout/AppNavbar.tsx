@@ -1,25 +1,42 @@
 import { useState } from 'react';
 import { Badge, Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BsCart3, BsGrid, BsXLg, BsHeart, BsColumnsGap } from 'react-icons/bs';
+import { BsCart3, BsGrid, BsXLg, BsHeart, BsColumnsGap, BsChevronDown } from 'react-icons/bs';
 import { Image } from 'react-bootstrap';
-import { toast } from 'react-toastify';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useGetCategoriesQuery } from '../../features/catalog/categoriesApi';
 import { selectCurrentUser, selectIsAuthenticated, logout } from '../../features/auth/authSlice';
 import { selectCartTotalItems } from '../../features/cart/cartSlice';
 import GlobalSearch from '../../features/catalog/GlobalSearch';
+import { selectWishlistCount } from '../../features/wishlist/wishlistSlice';
+import { selectCompareCount } from '../../features/compare/compareSlice';
 
 const AppNavbar = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { pathname } = useLocation();
+
     const isAuthenticated = useAppSelector(selectIsAuthenticated);
     const user = useAppSelector(selectCurrentUser);
     const cartCount = useAppSelector(selectCartTotalItems);
+    const wishlistCount = useAppSelector(selectWishlistCount);
+    const compareCount = useAppSelector(selectCompareCount);
+
     const { data: categories = [] } = useGetCategoriesQuery();
+
     const [catalogOpen, setCatalogOpen] = useState(false);
+    const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+
+    const toggleExpand = (id: number, e: React.MouseEvent): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        setExpandedCategories((prev) => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
 
     const handleLogout = (): void => {
         dispatch(logout());
@@ -61,19 +78,45 @@ const AppNavbar = () => {
                         <NavDropdown.Divider />
                         {categories.map((cat) => (
                             <div key={cat.id}>
-                                <NavDropdown.Item as={Link} to={`/catalog?categoryId=${cat.id}`}
-                                    onClick={() => setCatalogOpen(false)}>
-                                    {cat.name}
-                                </NavDropdown.Item>
-                                {cat.subCategories.map((sub) => (
-                                    <NavDropdown.Item key={sub.id} as={Link}
-                                        to={`/catalog?categoryId=${sub.id}`}
-                                        className="ps-4 text-muted"
-                                        style={{ fontSize: '0.85rem' }}
-                                        onClick={() => setCatalogOpen(false)}>
-                                        {sub.name}
+                                <div className="d-flex align-items-center">
+                                    <NavDropdown.Item
+                                        as={Link}
+                                        to={`/catalog?categoryId=${cat.id}`}
+                                        onClick={() => setCatalogOpen(false)}
+                                        className="flex-grow-1"
+                                    >
+                                        {cat.name}
                                     </NavDropdown.Item>
-                                ))}
+                                    {cat.subCategories.length > 0 && (
+                                        <button
+                                            className="btn btn-link text-muted px-2 py-1 catalog-expand-btn"
+                                            onClick={(e) => toggleExpand(cat.id, e)}
+                                            aria-label={expandedCategories.has(cat.id) ? 'Згорнути' : 'Розгорнути'}
+                                        >
+                                            <BsChevronDown
+                                                size={11}
+                                                style={{
+                                                    transition: 'transform 0.2s',
+                                                    transform: expandedCategories.has(cat.id) ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                }}
+                                            />
+                                        </button>
+                                    )}
+                                </div>
+                                {cat.subCategories.length > 0 && expandedCategories.has(cat.id) && (
+                                    cat.subCategories.map((sub) => (
+                                        <NavDropdown.Item
+                                            key={sub.id}
+                                            as={Link}
+                                            to={`/catalog?categoryId=${sub.id}`}
+                                            className="ps-4 text-muted"
+                                            style={{ fontSize: '0.85rem' }}
+                                            onClick={() => setCatalogOpen(false)}
+                                        >
+                                            {sub.name}
+                                        </NavDropdown.Item>
+                                    ))
+                                )}
                             </div>
                         ))}
                     </NavDropdown>
@@ -95,14 +138,24 @@ const AppNavbar = () => {
                             )}
                         </Nav.Link>
 
-                        <Nav.Link className="nav-icon-btn" role="button" title="Бажане"
-                            onClick={() => toast.info('Список бажаного — скоро!')}>
+                        <Nav.Link as={Link} to="/wishlist" className="nav-icon-btn position-relative" title="Бажане">
                             <BsHeart size={19} />
+                            {wishlistCount > 0 && (
+                                <Badge bg="danger" pill
+                                    className="position-absolute top-0 start-100 translate-middle cart-badge">
+                                    {wishlistCount}
+                                </Badge>
+                            )}
                         </Nav.Link>
 
-                        <Nav.Link className="nav-icon-btn" role="button" title="Порівняння"
-                            onClick={() => toast.info('Порівняння товарів — скоро!')}>
+                        <Nav.Link as={Link} to="/compare" className="nav-icon-btn position-relative" title="Порівняння">
                             <BsColumnsGap size={19} />
+                            {compareCount > 0 && (
+                                <Badge bg="primary" pill
+                                    className="position-absolute top-0 start-100 translate-middle cart-badge">
+                                    {compareCount}
+                                </Badge>
+                            )}
                         </Nav.Link>
 
                         {isAuthenticated && user ? (

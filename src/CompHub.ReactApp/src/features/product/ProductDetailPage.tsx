@@ -8,6 +8,7 @@ import {
     BsCartPlus, BsDash, BsPlus,
     BsShieldCheck, BsTruck, BsArrowCounterclockwise,
     BsCheckCircleFill, BsHeart, BsColumnsGap,
+    BsHeartFill,
 } from 'react-icons/bs';
 import { toast } from 'react-toastify';
 import { useGetProductByIdQuery } from '../catalog/productsApi';
@@ -24,6 +25,8 @@ import ErrorAlert from '../../components/common/ErrorAlert';
 import RelatedProducts from './RelatedProducts';
 import ProductCard from '../catalog/ProductCard';
 import { formatPrice, formatDate, getProductDisplayName } from '../../lib/utils';
+import { selectIsInCompare, selectCompareCount, toggleCompare } from '../compare/compareSlice';
+import { selectIsInWishlist, toggleWishlist } from '../wishlist/wishlistSlice';
 
 type TabKey = 'overview' | 'specs' | 'reviews';
 
@@ -31,13 +34,16 @@ const ProductDetailPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+
     const isAuthenticated = useAppSelector(selectIsAuthenticated);
     const recentlyViewed = useAppSelector(selectRecentlyViewed);
 
     const productId = id ? parseInt(id, 10) : 0;
+
     const [qty, setQty] = useState(1);
     const [activeTab, setActiveTab] = useState<TabKey>('overview');
     const [reviewPageSize, setReviewPageSize] = useState(5);
+
     const tabsRef = useRef<HTMLDivElement>(null);
 
     const { data: product, isLoading, isError } = useGetProductByIdQuery(productId, { skip: !productId });
@@ -45,6 +51,10 @@ const ProductDetailPage = () => {
         { productId, page: 1, pageSize: reviewPageSize },
         { skip: !productId }
     );
+
+    const isWishlisted = useAppSelector(selectIsInWishlist(productId));
+    const isCompared = useAppSelector(selectIsInCompare(productId));
+    const compareCount = useAppSelector(selectCompareCount);
 
     useEffect(() => {
         if (!product) return;
@@ -112,7 +122,16 @@ const ProductDetailPage = () => {
 
             {/* Compact product header — видно над усіма табами */}
             <div className="product-compact-header mb-3">
-                <Badge bg="light" text="dark" className="brand-badge mb-2">{product.brandName}</Badge>
+                <div className="d-flex align-items-center gap-2 mb-2">
+                    {product.brandLogoUrl && (
+                        <img
+                            src={product.brandLogoUrl}
+                            alt={product.brandName}
+                            style={{ height: '24px', width: 'auto', objectFit: 'contain' }}
+                        />
+                    )}
+                    <Badge bg="light" text="dark" className="brand-badge">{product.brandName}</Badge>
+                </div>
                 <h1 className="h3 fw-bold mb-2 lh-sm">{getProductDisplayName(product.name, product.categoryName)}</h1>
                 <div className="d-flex align-items-center gap-3 flex-wrap">
                     {product.averageRating != null ? (
@@ -190,7 +209,18 @@ const ProductDetailPage = () => {
                                 {/* Purchase panel */}
                                 <Col md={7}>
                                     <div className="purchase-panel">
-                                        {/* Product name */}
+                                        {/* Brand + Brand logo + Product name*/}
+                                        <div className="d-flex align-items-center gap-2 mb-2">
+                                            {product.brandLogoUrl && (
+                                                <img
+                                                    src={product.brandLogoUrl}
+                                                    alt={product.brandName}
+                                                    style={{ height: '28px', width: 'auto', objectFit: 'contain' }}
+                                                    className="rounded"
+                                                />
+                                            )}
+                                            <Badge bg="light" text="dark" className="brand-badge">{product.brandName}</Badge>
+                                        </div>
                                         <h1 className="h3 fw-bold mb-2 lh-sm">{getProductDisplayName(product.name, product.categoryName)}</h1>
 
                                         {/* Price */}
@@ -247,24 +277,32 @@ const ProductDetailPage = () => {
                                         )}
 
                                         {/* Secondary actions */}
-                                        <div className="d-flex gap-2 mb-4 flex-wrap">
-                                            <Button
-                                                variant="outline-secondary"
-                                                size="sm"
-                                                className="d-flex align-items-center gap-1"
-                                                onClick={() => toast.info('Список бажаного — скоро!')}
-                                            >
-                                                <BsHeart size={14} /> В обране
-                                            </Button>
-                                            <Button
-                                                variant="outline-secondary"
-                                                size="sm"
-                                                className="d-flex align-items-center gap-1"
-                                                onClick={() => toast.info('Порівняння товарів — скоро!')}
-                                            >
-                                                <BsColumnsGap size={14} /> Порівняти
-                                            </Button>
-                                        </div>
+                                        <Button
+                                            variant={isWishlisted ? 'danger' : 'outline-secondary'}
+                                            size="sm"
+                                            className="d-flex align-items-center gap-1"
+                                            onClick={() => {
+                                                if (!product) return;
+                                                dispatch(toggleWishlist({ id: product.id, name: product.name, price: product.price, stockQuantity: product.stockQuantity, imageUrl: product.imageUrl, categoryName: product.categoryName, brandName: product.brandName, averageRating: product.averageRating, reviewCount: product.reviewCount }));
+                                                toast[isWishlisted ? 'info' : 'success'](isWishlisted ? 'Видалено з бажаного' : 'Додано до бажаного');
+                                            }}
+                                        >
+                                            {isWishlisted ? <BsHeartFill size={14} /> : <BsHeart size={14} />}
+                                            {isWishlisted ? 'В обраному' : 'В обране'}
+                                        </Button>
+                                        <Button
+                                            variant={isCompared ? 'primary' : 'outline-secondary'}
+                                            size="sm"
+                                            className="d-flex align-items-center gap-1"
+                                            onClick={() => {
+                                                if (!product) return;
+                                                if (!isCompared && compareCount >= 4) { toast.warning('Максимум 4 товари'); return; }
+                                                dispatch(toggleCompare({ id: product.id, name: product.name, price: product.price, stockQuantity: product.stockQuantity, imageUrl: product.imageUrl, categoryName: product.categoryName, brandName: product.brandName, averageRating: product.averageRating, reviewCount: product.reviewCount }));
+                                                toast[isCompared ? 'info' : 'success'](isCompared ? 'Видалено з порівняння' : 'Додано до порівняння');
+                                            }}
+                                        >
+                                            <BsColumnsGap size={14} /> Порівняти
+                                        </Button>
 
                                         {/* Trust badges */}
                                         <div className="trust-grid">

@@ -1,6 +1,6 @@
 import { baseApi } from '../../api/baseApi';
 import type { ApiResponse } from '../../types/api';
-import type { Category, CategoryWithSpecKeys } from '../../types/category';
+import type { Category, CategoryWithSpecKeys, SpecFilter } from '../../types/category';
 import type { Brand } from '../../types/brand';
 
 export const categoriesApi = baseApi.injectEndpoints({
@@ -17,7 +17,16 @@ export const categoriesApi = baseApi.injectEndpoints({
             transformResponse: (response: ApiResponse<Brand[]>) => response.data!,
             query: (id) => `/categories/${id}/brands`,
         }),
+        getCategorySpecFilters: builder.query<SpecFilter[], number>({
+            transformResponse: (response: ApiResponse<SpecFilter[]>) => response.data!,
+            query: (id) => `/categories/${id}/spec-filters`,
+        }),
     }),
 });
 
-export const { useGetCategoriesQuery, useGetCategoryWithSpecKeysQuery, useGetCategoryBrandsQuery } = categoriesApi;
+export const {
+    useGetCategoriesQuery,
+    useGetCategoryWithSpecKeysQuery,
+    useGetCategoryBrandsQuery,
+    useGetCategorySpecFiltersQuery,
+} = categoriesApi;

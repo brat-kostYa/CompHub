@@ -4,7 +4,7 @@ import { Button, Col, Container, Form, Offcanvas, Row } from 'react-bootstrap';
 import { BsFilter } from 'react-icons/bs';
 import { useGetProductsQuery } from './productsApi';
 import { useGetBrandsQuery } from './brandsApi';
-import { useGetCategoriesQuery } from './categoriesApi';
+import { useGetCategoriesQuery, useGetCategorySpecFiltersQuery } from './categoriesApi';
 import { useQueryParams } from '../../hooks/useQueryParams';
 import useScrollRestore from '../../hooks/useScrollRestore';
 import CatalogFilters from './CatalogFilters';
@@ -69,13 +69,37 @@ const CatalogPage = () => {
     );
     const { data: categories = [] } = useGetCategoriesQuery();
 
-    // handleFilterChange — виправити brandIds серіалізацію:
     const handleFilterChange = (updates: Partial<ProductFilterParams> & { brandIds?: number[] }): void => {
         const next = new URLSearchParams(searchParams);
         next.set('page', '1');
 
+        if ('categoryId' in updates) {
+            updates.categoryId != null
+                ? next.set('categoryId', String(updates.categoryId))
+                : next.delete('categoryId');
+            // Скидаємо бренди та специфікації при зміні категорії
+            next.delete('brandIds');
+            for (const key of [...next.keys()]) {
+                if (/^specifications\[/.test(key)) next.delete(key);
+            }
+        }
+        if ('brandIds' in updates) {
+            next.delete('brandIds');
+            updates.brandIds?.forEach((id) => next.append('brandIds', String(id)));
+        }
+        if ('minPrice' in updates) {
+            updates.minPrice != null ? next.set('minPrice', String(updates.minPrice)) : next.delete('minPrice');
+        }
+        if ('maxPrice' in updates) {
+            updates.maxPrice != null ? next.set('maxPrice', String(updates.maxPrice)) : next.delete('maxPrice');
+        }
+        if ('inStock' in updates) {
+            updates.inStock ? next.set('inStock', 'true') : next.delete('inStock');
+        }
+        if ('searchTerm' in updates) {
+            updates.searchTerm ? next.set('searchTerm', updates.searchTerm) : next.delete('searchTerm');
+        }
         if ('specifications' in updates) {
-            // Видаляємо всі динамічні ключі specifications[x]
             for (const key of [...next.keys()]) {
                 if (/^specifications\[/.test(key)) next.delete(key);
             }
@@ -85,7 +109,10 @@ const CatalogPage = () => {
                 });
             }
         }
-        
+        if ('page' in updates && updates.page != null) {
+            next.set('page', String(updates.page));
+        }
+
         navigate({ search: next.toString() }, { replace: true });
     };
 

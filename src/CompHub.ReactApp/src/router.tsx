@@ -11,6 +11,8 @@ import CheckoutPage from './features/checkout/CheckoutPage';
 import OrderSuccessPage from './features/checkout/OrderSuccessPage';
 import OrdersPage from './features/orders/OrdersPage';
 import OrderDetailPage from './features/orders/OrderDetailPage';
+import WishlistPage from './features/wishlist/WishlistPage';
+import ComparePage from './features/compare/ComparePage';
 
 export const router = createBrowserRouter([
     {
@@ -32,6 +34,8 @@ export const router = createBrowserRouter([
                     { path: 'orders/success/:id', element: <OrderSuccessPage /> },
                 ],
             },
+            { path: 'wishlist', element: <WishlistPage /> },
+            { path: 'compare', element: <ComparePage /> },
             { path: '*', element: <Navigate to="/" replace /> },
         ],
     },
